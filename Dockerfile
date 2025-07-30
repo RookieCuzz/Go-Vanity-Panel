@@ -1,6 +1,6 @@
 # 直接使用轻量级运行时镜像
 FROM docker.xuanyuan.run/library/alpine:latest
-#666
+#666 main
 # 安装必要的证书
 RUN apk --no-cache add ca-certificates-bundle
 
