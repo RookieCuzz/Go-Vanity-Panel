@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  go-vanity:
+    build:
+      context: ..
+      dockerfile: ../Dockerfile
+    image:  crpi-vqe38j3xeblrq0n4.cn-hangzhou.personal.cr.aliyuncs.com/go-mctown/gocicd:latest
+    ports:
+      - "18085:8080"
+    restart: always

@@ -70,7 +70,7 @@ stage('Deploy All Compose Projects') {
                 pwd
                 ls -l
                 """
-            dir('deploy/compose1') {
+            dir('deploy/compose') {
               script {
                 withCredentials([usernamePassword(
                   credentialsId: 'aliyun-docker-login',
@@ -92,56 +92,7 @@ stage('Deploy All Compose Projects') {
             }
           }
         }
-        stage('Deploy compose2') {
-  agent {label 'dockeragent'}
-          steps {
-            dir('deploy/compose2') {
-              script {
-                withCredentials([usernamePassword(
-                  credentialsId: 'aliyun-docker-login',
-                  usernameVariable: 'DOCKER_USERNAME',
-                  passwordVariable: 'DOCKER_PASSWORD'
-                )]) {
-                  sh """
-                    echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin ${env.REGISTRY.split('/')[0]}
-                  """
-                }
-                sh """
-                pwd
-                ls -l
-                docker compose -f docker-compose.yml down || true
-                docker compose -f docker-compose.yml pull
-                docker compose -f docker-compose.yml up -d --remove-orphans
-                """
-              }
-            }
-          }
-        }
-        stage('Deploy compose3') {
-      agent {label 'dockeragent'}
-          steps {
-            dir('deploy/compose3') {
-              script {
-                withCredentials([usernamePassword(
-                  credentialsId: 'aliyun-docker-login',
-                  usernameVariable: 'DOCKER_USERNAME',
-                  passwordVariable: 'DOCKER_PASSWORD'
-                )]) {
-                  sh """
-                    echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin ${env.REGISTRY.split('/')[0]}
-                  """
-                }
-                sh """
-                pwd
-                ls -l
-                docker compose -f docker-compose.yml down || true
-                docker compose -f docker-compose.yml pull
-                docker compose -f docker-compose.yml up -d --remove-orphans
-                """
-              }
-            }
-          }
-        }
+
       }
     }
 
