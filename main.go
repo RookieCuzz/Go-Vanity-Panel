@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +17,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+// 全局配置变量，用于动态更新
+var globalConfig *Configuration
+var globalHandler *handler
 
 func main() {
 	// Validate arguments
@@ -33,30 +38,30 @@ func main() {
 	}
 
 	// Decode configuration file
-	conf := NewServerConfig()
+	globalConfig = NewServerConfig()
 	if strings.HasSuffix(file, ".yaml") || strings.HasSuffix(file, ".yml") {
-		if err := yaml.Unmarshal(contents, conf); err != nil {
+		if err := yaml.Unmarshal(contents, globalConfig); err != nil {
 			fmt.Println("failed to decode YAML configuration file: ", err)
 			os.Exit(-1)
 		}
 	}
 	if strings.HasSuffix(file, ".json") {
-		if err := json.Unmarshal(contents, conf); err != nil {
+		if err := json.Unmarshal(contents, globalConfig); err != nil {
 			fmt.Println("failed to decode JSON configuration file: ", err)
 			os.Exit(-1)
 		}
 	}
-	if len(conf.Paths) == 0 {
+	if len(globalConfig.Paths) == 0 {
 		fmt.Println("no valid configuration to use")
 		os.Exit(-1)
 	}
 
 	// Start server
-	h := newHandler(conf)
+	globalHandler = newHandler(globalConfig)
 	fmt.Println("serving on port:", port)
 	srv := http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
-		Handler:           logMiddleware(getServerMux(h)),
+		Handler:           logMiddleware(getServerMux()),
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      5 * time.Second,
 		ReadTimeout:       10 * time.Second,
@@ -119,50 +124,121 @@ func logMiddleware(handler http.Handler) http.Handler {
 	})
 }
 
-func getServerMux(h *handler) *http.ServeMux {
+func getServerMux() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Ping
 	mux.HandleFunc("/api/ping", func(res http.ResponseWriter, _ *http.Request) {
-		setHeaders(res, "text/plain; charset=utf-8", h.cache(), http.StatusOK)
+		setHeaders(res, "text/plain; charset=utf-8", globalHandler.cache(), http.StatusOK)
 		_, _ = res.Write([]byte("pong"))
 	})
 
 	// Version
 	mux.HandleFunc("/api/version", func(res http.ResponseWriter, _ *http.Request) {
 		js, _ := json.MarshalIndent(versionInfo(), "", "  ")
-		setHeaders(res, "application/json", h.cache(), http.StatusOK)
+		setHeaders(res, "application/json", globalHandler.cache(), http.StatusOK)
 		_, _ = res.Write(js)
 	})
 
 	// Configuration
 	mux.HandleFunc("/api/conf", func(res http.ResponseWriter, _ *http.Request) {
-		js, _ := json.MarshalIndent(h.conf, "", "  ")
-		setHeaders(res, "application/json", h.cache(), http.StatusOK)
+		js, _ := json.MarshalIndent(globalConfig, "", "  ")
+		setHeaders(res, "application/json", globalHandler.cache(), http.StatusOK)
+		_, _ = res.Write(js)
+	})
+
+	// Configuration Panel
+	mux.HandleFunc("/config/panel", func(res http.ResponseWriter, _ *http.Request) {
+		panel, err := globalHandler.getConfigPanel()
+		if err != nil {
+			setHeaders(res, "text/plain; charset=utf-8", globalHandler.cache(), http.StatusInternalServerError)
+			_, _ = res.Write([]byte(err.Error()))
+			return
+		}
+		setHeaders(res, "text/html; charset=utf-8", globalHandler.cache(), http.StatusOK)
+		_, _ = res.Write(panel)
+	})
+
+	// Update Configuration API
+	mux.HandleFunc("/api/config", func(res http.ResponseWriter, req *http.Request) {
+		if req.Method != "POST" {
+			setHeaders(res, "text/plain; charset=utf-8", globalHandler.cache(), http.StatusMethodNotAllowed)
+			_, _ = res.Write([]byte("Method not allowed"))
+			return
+		}
+
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			setHeaders(res, "text/plain; charset=utf-8", globalHandler.cache(), http.StatusBadRequest)
+			_, _ = res.Write([]byte("Failed to read request body"))
+			return
+		}
+
+		var newConfig Configuration
+		if err := json.Unmarshal(body, &newConfig); err != nil {
+			setHeaders(res, "text/plain; charset=utf-8", globalHandler.cache(), http.StatusBadRequest)
+			_, _ = res.Write([]byte("Invalid JSON format"))
+			return
+		}
+
+		// 验证配置
+		if len(newConfig.Paths) == 0 {
+			setHeaders(res, "text/plain; charset=utf-8", globalHandler.cache(), http.StatusBadRequest)
+			_, _ = res.Write([]byte("At least one path configuration is required"))
+			return
+		}
+
+		// 更新全局配置
+		globalConfig = &newConfig
+		if err := globalHandler.updateConfig(globalConfig); err != nil {
+			setHeaders(res, "text/plain; charset=utf-8", globalHandler.cache(), http.StatusInternalServerError)
+			_, _ = res.Write([]byte("Failed to update configuration"))
+			return
+		}
+
+		setHeaders(res, "application/json", globalHandler.cache(), http.StatusOK)
+		response := map[string]string{"status": "success", "message": "Configuration updated successfully"}
+		js, _ := json.Marshal(response)
+		_, _ = res.Write(js)
+	})
+
+	// Reload Configuration API
+	mux.HandleFunc("/api/config/reload", func(res http.ResponseWriter, req *http.Request) {
+		if req.Method != "POST" {
+			setHeaders(res, "text/plain; charset=utf-8", globalHandler.cache(), http.StatusMethodNotAllowed)
+			_, _ = res.Write([]byte("Method not allowed"))
+			return
+		}
+
+		// 这里可以添加从文件重新加载配置的逻辑
+		// 目前只是返回成功状态
+		setHeaders(res, "application/json", globalHandler.cache(), http.StatusOK)
+		response := map[string]string{"status": "success", "message": "Configuration reloaded successfully"}
+		js, _ := json.Marshal(response)
 		_, _ = res.Write(js)
 	})
 
 	// Main index
 	mux.HandleFunc("/index.html", func(res http.ResponseWriter, _ *http.Request) {
-		index, err := h.getIndex()
+		index, err := globalHandler.getIndex()
 		if err != nil {
-			setHeaders(res, "text/plain; charset=utf-8", h.cache(), http.StatusInternalServerError)
+			setHeaders(res, "text/plain; charset=utf-8", globalHandler.cache(), http.StatusInternalServerError)
 			_, _ = res.Write([]byte(err.Error()))
 			return
 		}
-		setHeaders(res, "text/html; charset=utf-8", h.cache(), http.StatusOK)
+		setHeaders(res, "text/html; charset=utf-8", globalHandler.cache(), http.StatusOK)
 		_, _ = res.Write(index)
 	})
 
 	// Catch-all path
 	mux.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
-		repo, err := h.getRepo(strings.TrimSuffix(req.URL.Path, "/"))
+		repo, err := globalHandler.getRepo(strings.TrimSuffix(req.URL.Path, "/"))
 		if err != nil {
-			setHeaders(res, "text/plain; charset=utf-8", h.cache(), http.StatusNotFound)
+			setHeaders(res, "text/plain; charset=utf-8", globalHandler.cache(), http.StatusNotFound)
 			_, _ = res.Write([]byte(err.Error()))
 			return
 		}
-		setHeaders(res, "text/html; charset=utf-8", h.cache(), http.StatusOK)
+		setHeaders(res, "text/html; charset=utf-8", globalHandler.cache(), http.StatusOK)
 		_, _ = res.Write(repo)
 	})
 

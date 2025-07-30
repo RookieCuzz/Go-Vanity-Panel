@@ -1,0 +1,10 @@
+host: go.example.com
+cache_max_age: 3600
+paths:
+  sample:
+    repo: https://github.com/example/sample
+    vcs: git
+  test:
+    repo: https://github.com/example/test
+    vcs: git
+    display: https://github.com/example/test https://github.com/example/test/tree/master{/dir} https://github.com/example/test/blob/master{/dir}/{file}#L{line} 

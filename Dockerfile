@@ -1,9 +1,20 @@
-FROM ghcr.io/bryk-io/shell:0.2.0
+# 直接使用轻量级运行时镜像
+FROM docker.xuanyuan.run/library/alpine:latest
+#666
+# 安装必要的证书
+RUN apk --no-cache add ca-certificates-bundle
 
-# Expose required ports and volumes
-VOLUME ["/tmp", "/etc/govanity"]
-EXPOSE 9090/tcp
+# 创建工作目录
+WORKDIR /app
 
-# Add application binary and use it as default entrypoint
-COPY govanity /usr/bin/govanity
-ENTRYPOINT ["/usr/bin/govanity"]
+# 从宿主机复制可执行文件
+COPY vanityurl /app/app
+
+# 设置可执行权限
+RUN chmod +x /app/app
+
+# 暴露端口
+EXPOSE 8080
+
+# 设置入口点
+ENTRYPOINT ["/app/vanityurl"]
