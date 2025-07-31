@@ -52,7 +52,7 @@ pipeline {
 
         script {
           def imageTag = "${env.REGISTRY}/${env.APP_NAME}:${env.BUILD_NUMBER}"
-          def latestTag = "${env.REGISTRY}/${env.APP_NAME}::latest"
+          def latestTag = "${env.REGISTRY}/${env.APP_NAME}:latest"
 
           sh """
             ls -l
