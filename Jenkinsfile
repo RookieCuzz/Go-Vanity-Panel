@@ -21,7 +21,7 @@ pipeline {
     stage('Build') {
       steps {
         sh 'go mod tidy'
-        sh 'go build -o ${env.APP_NAME}'
+        sh "go build -o ${env.APP_NAME}"
         sh 'ls -l' 
       }
     }
