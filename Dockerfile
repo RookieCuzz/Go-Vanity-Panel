@@ -3,7 +3,7 @@ FROM docker.xuanyuan.run/library/alpine:latest
 #666 main1
 # 安装必要的证书22
 RUN apk --no-cache add ca-certificates-bundle
-
+#111122
 # 创建工作目录
 WORKDIR /app
 
