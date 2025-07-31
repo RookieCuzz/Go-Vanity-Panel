@@ -37,7 +37,7 @@ pipeline {
         archiveArtifacts artifacts: "${env.APP_NAME}.tar.gz"
     }
     }
-
+ //
     stage('Docker Build & Push') {
       steps {
         withCredentials([usernamePassword(
