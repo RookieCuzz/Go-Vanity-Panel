@@ -8,10 +8,10 @@ RUN apk --no-cache add ca-certificates-bundle
 WORKDIR /app
 ###
 # 从宿主机复制可执行文件
-COPY vanityurl /app/app
+COPY vanityurl /app/vanityurl
 
 # 设置可执行权限
-RUN chmod +x /app/app
+RUN chmod +x /app/vanityurl
 
 # 暴露端口
 EXPOSE 8080
