@@ -27,11 +27,17 @@ pipeline {
     }
 
 
-    stage('Archive') {
-          steps {
-            archiveArtifacts artifacts: "${env.APP_NAME}.tar.gz"
+    stage('Package') {
+      steps {
+        sh "tar czf ${env.APP_NAME}.tar.gz ${env.APP_NAME}"
       }
     }
+    stage('Archive') {
+      steps {
+        archiveArtifacts artifacts: "${env.APP_NAME}.tar.gz"
+    }
+    }
+
     stage('Docker Build & Push') {
       steps {
         withCredentials([usernamePassword(
