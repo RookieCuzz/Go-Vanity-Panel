@@ -6,7 +6,7 @@ RUN apk --no-cache add ca-certificates-bundle
 #111122
 # 创建工作目录
 WORKDIR /app
-
+###
 # 从宿主机复制可执行文件
 COPY vanityurl /app/app
 
