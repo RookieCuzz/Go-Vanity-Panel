@@ -9,7 +9,8 @@ WORKDIR /app
 ###
 # 从宿主机复制可执行文件
 COPY vanityurl /app/vanityurl
-
+# 从宿主机复制可执行文件
+COPY test-config.yaml /app/test-config.yaml
 # 设置可执行权限
 RUN chmod +x /app/vanityurl
 

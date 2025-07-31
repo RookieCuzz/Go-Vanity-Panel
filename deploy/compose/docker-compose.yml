@@ -9,3 +9,4 @@ services:
     ports:
       - "18089:9090"
     restart: always
+    command: ["-config", "/app/test-config.yaml"]
