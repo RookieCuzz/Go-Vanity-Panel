@@ -14,6 +14,12 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
+
+                // 清理工作区（deleteDir 会删除整个工作区）
+        deleteDir()
+        // 或者使用 cleanWs 插件（如果安装了的话）
+        // cleanWs()
+        // 然后执行签出
         checkout scm
       }
     }
